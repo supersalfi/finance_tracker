@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
@@ -13,12 +14,157 @@ DATE_RE = re.compile(r"\b((?:20|19)\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]
 LOCATION_HINTS = ("store", "location", "address", "branch", "shop")
 
 CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "Groceries": ("bread", "milk", "cheese", "egg", "fruit", "vegetable", "meat", "market", "grocery"),
-    "Restaurants": ("coffee", "pizza", "burger", "restaurant", "cafe", "meal"),
-    "Household": ("detergent", "cleaner", "paper", "soap", "towel"),
-    "Healthcare": ("pharmacy", "medicine", "vitamin", "medical"),
-    "Transport": ("fuel", "parking", "parkiranja", "ticket", "train", "bus"),
-    "Shopping": ("shirt", "shoe", "electronics", "clothing"),
+    "Groceries": (
+        "bread",
+        "hleb",
+        "hljeb",
+        "pecivo",
+        "kifla",
+        "mleko",
+        "mlijeko",
+        "jogurt",
+        "sir",
+        "kajmak",
+        "pavlaka",
+        "egg",
+        "jaje",
+        "jaja",
+        "fruit",
+        "voce",
+        "banana",
+        "jabuka",
+        "limun",
+        "orange",
+        "vegetable",
+        "povrce",
+        "paradajz",
+        "krompir",
+        "luk",
+        "meat",
+        "meso",
+        "piletina",
+        "pile",
+        "svinjsko",
+        "junetina",
+        "salama",
+        "kobasica",
+        "rice",
+        "pirinac",
+        "pasta",
+        "testenina",
+        "ulje",
+        "secer",
+        "brasno",
+        "cokolada",
+        "keks",
+        "voda",
+        "sok",
+        "market",
+        "grocery",
+    ),
+    "Restaurants": (
+        "restaurant",
+        "restoran",
+        "cafe",
+        "kafana",
+        "coffee shop",
+        "pizza",
+        "burger",
+        "meal",
+        "obrok",
+        "sendvic",
+        "sendvi",
+        "giros",
+        "kebab",
+    ),
+    "Household": (
+        "detergent",
+        "deterdz",
+        "cleaner",
+        "sredstvo",
+        "paper",
+        "papir",
+        "toalet",
+        "ubrus",
+        "soap",
+        "sapun",
+        "towel",
+        "kesa",
+        "folija",
+        "baterije",
+        "sijalica",
+    ),
+    "Healthcare": (
+        "pharmacy",
+        "apoteka",
+        "medicine",
+        "lek",
+        "lijek",
+        "vitamin",
+        "medical",
+        "zdrav",
+        "brufen",
+        "paracetamol",
+        "aspirin",
+        "higijena",
+    ),
+    "Transport": (
+        "fuel",
+        "gorivo",
+        "benzin",
+        "dizel",
+        "parking",
+        "parkiranje",
+        "parkiranja",
+        "ticket",
+        "karta",
+        "train",
+        "voz",
+        "bus",
+        "autobus",
+        "taxi",
+        "putarina",
+    ),
+    "Shopping": (
+        "shirt",
+        "majica",
+        "shoe",
+        "cipele",
+        "patike",
+        "electronics",
+        "clothing",
+        "odeca",
+        "odjeca",
+        "igracka",
+        "knjiga",
+    ),
+    "Alcohol & Tobacco": (
+        "cigare",
+        "cigarete",
+        "duvan",
+        "tobacco",
+        "pivo",
+        "beer",
+        "vino",
+        "wine",
+        "rakija",
+        "vodka",
+        "whisky",
+    ),
+    "Personal Care": (
+        "sampon",
+        "shampoo",
+        "dezodorans",
+        "deodorant",
+        "pasta za zube",
+        "toothpaste",
+        "cetkica",
+        "krema",
+        "brijac",
+        "ulozak",
+    ),
+    "Pets": ("pet", "pas", "macka", "hrana za pse", "hrana za macke", "granule", "posip"),
+    "Baby": ("baby", "beba", "pelene", "vlazne maramice", "dohrana"),
 }
 
 
@@ -76,7 +222,8 @@ def parse_rows(rows: list[list[str]]) -> list[BillItem]:
         if key in seen:
             continue
         seen.add(key)
-        items.append(BillItem(description=description, quantity=1, amount=amount, category=categorize(description), raw_text=raw_text))
+        category = categorize(description)
+        items.append(BillItem(description=description, quantity=1, amount=amount, category=category, suggested_category=category, raw_text=raw_text))
     return items
 
 
@@ -97,7 +244,8 @@ def parse_lines(lines: list[str]) -> list[BillItem]:
         if key in seen:
             continue
         seen.add(key)
-        items.append(BillItem(description=description, quantity=1, amount=amount, category=categorize(description), raw_text=raw_text))
+        category = categorize(description)
+        items.append(BillItem(description=description, quantity=1, amount=amount, category=category, suggested_category=category, raw_text=raw_text))
     return items
 
 
@@ -117,11 +265,18 @@ def parse_amount(value: str) -> float | None:
 
 
 def categorize(description: str) -> str:
-    lower = description.lower()
+    lower = normalize_for_category(description)
     for category, keywords in CATEGORY_KEYWORDS.items():
         if any(keyword in lower for keyword in keywords):
             return category
     return "Other"
+
+
+def normalize_for_category(value: str) -> str:
+    value = unicodedata.normalize("NFKD", value.casefold())
+    value = "".join(char for char in value if not unicodedata.combining(char))
+    value = re.sub(r"[^a-z0-9]+", " ", value)
+    return normalize_space(value)
 
 
 def detect_vendor(source_url: str, soup: BeautifulSoup, visible_text: str) -> str:

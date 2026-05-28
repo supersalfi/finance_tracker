@@ -7,6 +7,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     headers: { "Content-Type": "application/json", ...options.headers },
     ...options,
   });
+  if (response.status === 204) {
+    return undefined as T;
+  }
   const payload = await response.json();
   if (!response.ok) {
     throw new Error(payload.detail ?? "Request failed");
@@ -34,4 +37,12 @@ export function getBills(): Promise<SavedBill[]> {
 
 export function getSummary(): Promise<SpendingSummary> {
   return request<SpendingSummary>("/api/summary");
+}
+
+export function deleteBill(id: number): Promise<void> {
+  return request<void>(`/api/bills/${id}`, { method: "DELETE" });
+}
+
+export function clearBills(): Promise<{ deleted: number }> {
+  return request<{ deleted: number }>("/api/bills", { method: "DELETE" });
 }

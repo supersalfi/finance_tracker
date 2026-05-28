@@ -16,6 +16,7 @@ class BillItem(ApiModel):
     quantity: float = 1
     amount: float
     category: str = "Other"
+    suggested_category: str | None = Field(default=None, alias="suggestedCategory")
     raw_text: str | None = Field(default=None, alias="rawText")
 
 

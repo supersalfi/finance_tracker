@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .models import BillDraft, ScanRequest, SavedBill, SpendingSummary
 from .parser import parse_bill_html
 from .providers import parse_serbian_taxcore_receipt
-from .storage import get_summary, init_db, list_bills, save_bill
+from .storage import clear_bills, delete_bill, get_summary, init_db, list_bills, save_bill
 
 
 app = FastAPI(title="Finance Tracker API")
@@ -65,6 +65,18 @@ def create_bill(draft: BillDraft) -> SavedBill:
 @app.get("/api/bills", response_model=list[SavedBill], response_model_by_alias=True)
 def get_bills() -> list[SavedBill]:
     return list_bills()
+
+
+@app.delete("/api/bills")
+def remove_all_bills() -> dict[str, int]:
+    return {"deleted": clear_bills()}
+
+
+@app.delete("/api/bills/{bill_id}")
+def remove_bill(bill_id: int) -> dict[str, bool]:
+    if not delete_bill(bill_id):
+        raise HTTPException(status_code=404, detail="Bill not found")
+    return {"deleted": True}
 
 
 @app.get("/api/summary", response_model=SpendingSummary, response_model_by_alias=True)

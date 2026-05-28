@@ -37,16 +37,20 @@ async def parse_serbian_taxcore_receipt(client: httpx.AsyncClient, source_url: s
     vendor = extract_labeled_value(text, "Предузеће") or extract_journal_vendor(text) or "Unknown vendor"
     location = build_location(text)
     purchased_at = extract_serbian_date(text)
-    items = [
-        BillItem(
-            description=normalize_space(str(item.get("name") or "Unknown item")),
-            quantity=round(float(item.get("quantity") or 1), 3),
-            amount=round(float(item.get("total") or 0), 2),
-            category=categorize(str(item.get("name") or "")),
-            raw_text=json.dumps(item, ensure_ascii=False),
+    items: list[BillItem] = []
+    for item in payload.get("items", []):
+        description = normalize_space(str(item.get("name") or "Unknown item"))
+        category = categorize(description)
+        items.append(
+            BillItem(
+                description=description,
+                quantity=round(float(item.get("quantity") or 1), 3),
+                amount=round(float(item.get("total") or 0), 2),
+                category=category,
+                suggested_category=category,
+                raw_text=json.dumps(item, ensure_ascii=False),
+            )
         )
-        for item in payload.get("items", [])
-    ]
     total = round(sum(item.amount for item in items), 2)
 
     return BillDraft(

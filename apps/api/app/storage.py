@@ -92,6 +92,19 @@ def list_bills() -> list[SavedBill]:
         return bills
 
 
+def delete_bill(bill_id: int) -> bool:
+    with connect() as conn:
+        cursor = conn.execute("DELETE FROM bills WHERE id = ?", (bill_id,))
+        return cursor.rowcount > 0
+
+
+def clear_bills() -> int:
+    with connect() as conn:
+        deleted = conn.execute("SELECT COUNT(*) FROM bills").fetchone()[0]
+        conn.execute("DELETE FROM bills")
+        return int(deleted)
+
+
 def get_summary() -> SpendingSummary:
     with connect() as conn:
         lifetime_total = conn.execute("SELECT ROUND(COALESCE(SUM(total), 0), 2) FROM bills").fetchone()[0]

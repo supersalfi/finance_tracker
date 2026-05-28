@@ -3,6 +3,7 @@ export type BillItem = {
   quantity: number;
   amount: number;
   category: string;
+  suggestedCategory?: string | null;
   rawText?: string;
 };
 
